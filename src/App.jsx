@@ -232,7 +232,7 @@ export default function App() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 44 }}>
           {[
             ["01", "You tell us the goal", "Course, college, subjects, and where you are in the process. Browse the tutors and name anyone you'd like to work with."],
-            ["02", "We match you", "We hand-pick the tutor whose interview and subjects fit yours — or the one you requested, if they're right for it."],
+            ["02", "We match you", "We hand-pick the tutor whose interview and subjects fit yours, or the one you requested, if they're right for it."],
             ["03", "You meet, then decide", "A short introductory call before anything is committed. The fit has to be real on both sides."],
           ].map(([n, h, s]) => (
             <div key={n}>
@@ -248,9 +248,9 @@ export default function App() {
       <section style={{ background: CAM, color: CAM_INK, padding: "clamp(52px,7vw,84px) 40px" }}>
         <div style={{ maxWidth: 1080, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 40 }}>
           {[
-            ["Oxbridge admissions", "Interviews, admissions tests, and personal statements — the whole gauntlet, from the people who cleared it."],
+            ["Oxbridge admissions", "Interviews, admissions tests, and personal statements. The whole gauntlet, from the people who cleared it."],
             ["A-Level & IB", "The subject grades underneath the application. Taught by students who scored them recently."],
-            ["UCAS, everywhere", "Personal statement support for any course at any university — not only Oxford and Cambridge."],
+            ["UCAS, everywhere", "Personal statement support for any course at any university, not only Oxford and Cambridge."],
           ].map(([h, s]) => (
             <div key={h}>
               <h3 style={{ fontFamily: DISPLAY, fontSize: 27, fontWeight: 600, marginBottom: 10, letterSpacing: "-.01em" }}>{h}</h3>
@@ -264,7 +264,7 @@ export default function App() {
       <section id="tutors" style={{ maxWidth: 1080, margin: "0 auto", padding: "clamp(60px,8vw,100px) 40px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 20, marginBottom: 34 }}>
           <h2 style={{ fontFamily: DISPLAY, fontSize: "clamp(32px,4.5vw,48px)", color: INK, fontWeight: 600, lineHeight: 1, letterSpacing: "-.02em" }}>Browse, then request</h2>
-          <p style={{ fontSize: 14.5, color: MUTED, maxWidth: 340 }}>Placement is by application and verification. Rates are discussed once you're matched.</p>
+          <p style={{ fontSize: 14.5, color: MUTED, maxWidth: 340 }}>Placement is by application and verification.</p>
         </div>
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 34 }}>
@@ -287,7 +287,7 @@ export default function App() {
           </div>
         ) : loadState === "error" ? (
           <div style={{ border: `1px dashed ${LINE}`, padding: "56px 24px", textAlign: "center", color: MUTED }}>
-            Couldn't load the directory. Check your connection and refresh — or send an enquiry below and we'll match you directly.
+            Couldn't load the directory. Check your connection and refresh, or send an enquiry below and we'll match you directly.
           </div>
         ) : shown.length === 0 ? (
           <div style={{ border: `1px dashed ${LINE}`, padding: "56px 24px", textAlign: "center", color: MUTED }}>
@@ -308,7 +308,7 @@ export default function App() {
         <div style={{ marginBottom: 10 }}>
           <a href="#privacy" onClick={(e) => { e.preventDefault(); document.getElementById("privacy-modal").style.display = "flex"; }} style={{ color: MUTED, textDecoration: "underline" }}>Privacy notice</a>
         </div>
-        Second Year — not affiliated with or endorsed by the Universities of Oxford or Cambridge.
+        Second Year, not affiliated with or endorsed by the Universities of Oxford or Cambridge.
       </footer>
 
       <PrivacyModal />
@@ -411,7 +411,7 @@ function EnquirySection({ prefill }) {
           <div style={{ fontFamily: DISPLAY, fontSize: 60, fontWeight: 600, color: CAM, lineHeight: 1, marginBottom: 20 }}>✓</div>
           <h2 style={{ fontFamily: DISPLAY, fontSize: "clamp(30px,4.5vw,46px)", fontWeight: 600, marginBottom: 18, letterSpacing: "-.02em" }}>Enquiry received.</h2>
           <p style={{ fontSize: 17, color: "rgba(255,255,255,.8)", lineHeight: 1.6 }}>
-            We'll read it properly and reply — usually within a day — with the tutor we think fits{f.tutor ? `, starting with your request for ${f.tutor}` : ""}. Keep an eye on {f.email || "your inbox"}.
+            We'll read it properly and reply, usually within a day, with the tutor we think fits{f.tutor ? `, starting with your request for ${f.tutor}` : ""}. Keep an eye on {f.email || "your inbox"}.
           </p>
         </div>
       </section>
@@ -424,7 +424,7 @@ function EnquirySection({ prefill }) {
         <div style={{ textAlign: "center", marginBottom: 44 }}>
           <h2 style={{ fontFamily: DISPLAY, fontSize: "clamp(32px,5vw,54px)", fontWeight: 600, lineHeight: 1.06, marginBottom: 16, letterSpacing: "-.02em" }}>Tell us where you're aiming.</h2>
           <p style={{ fontSize: 17, color: "rgba(255,255,255,.78)", lineHeight: 1.6, maxWidth: 520, margin: "0 auto" }}>
-            One short enquiry. We reply with a match, usually within a day. No payment now — nothing's committed until you've met your tutor.
+            One short enquiry. We reply with a match, usually within a day. No payment now, nothing's committed until you've met your tutor.
           </p>
         </div>
 
@@ -553,6 +553,7 @@ function TutorApply() {
   });
   const [alevelPicks, setAlevelPicks] = useState([]);
   const [alevelOther, setAlevelOther] = useState("");
+  const [subjectOther, setSubjectOther] = useState("");
   const [errors, setErrors] = useState({});
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
@@ -567,11 +568,12 @@ function TutorApply() {
     if (!f.first.trim()) e.first = "Required";
     if (!f.last.trim()) e.last = "Required";
     if (!/^[^\s@]+@([a-z0-9-]+\.)*(cam|ox)\.ac\.uk$/i.test(f.email.trim()))
-      e.email = "Use your current @cam.ac.uk or @ox.ac.uk address — it's how we verify you";
+      e.email = "Use your current @cam.ac.uk or @ox.ac.uk address, it's how we verify you";
     if (!f.uni) e.uni = "Choose one";
     if (!f.college.trim()) e.college = "Required";
     if (!f.course) e.course = "Choose your course";
-    if (!f.subjects.length) e.subjects = "Pick at least one";
+    const hasSubject = f.subjects.filter((a) => a !== "Other (write in)").length > 0 || subjectOther.trim().length > 0;
+    if (!hasSubject) e.subjects = "Pick at least one";
     if (!f.stages.length) e.stages = "Pick at least one";
     if (f.blurb.trim().length < 40) e.blurb = "Give students a reason to pick you (40+ characters)";
     const hasAlevel = alevelPicks.filter((a) => a !== "Other (write in)").length > 0 || alevelOther.trim().length > 0;
@@ -583,9 +585,13 @@ function TutorApply() {
     if (!validate() || sending) return;
     setSending(true); setSendError("");
     const composedAlevels = [...alevelPicks.filter((a) => a !== "Other (write in)"), ...(alevelOther.trim() ? [alevelOther.trim()] : [])].join(" · ");
-    const fWithAlevels = { ...f, alevels: composedAlevels };
-    try { await postTutorApplication(fWithAlevels, tsToken); setSent(true); window.scrollTo({ top: 0, behavior: "smooth" }); }
-    catch (err) { setSendError(err.message || "That didn't go through — try again."); }
+    const composedSubjects = [
+      ...f.subjects.filter((a) => a !== "Other (write in)"),
+      ...(subjectOther.trim() ? subjectOther.split(",").map((s) => s.trim()).filter(Boolean) : []),
+    ];
+    const fWithComposed = { ...f, alevels: composedAlevels, subjects: composedSubjects };
+    try { await postTutorApplication(fWithComposed, tsToken); setSent(true); window.scrollTo({ top: 0, behavior: "smooth" }); }
+    catch (err) { setSendError(err.message || "That didn't go through, try again."); }
     finally { setSending(false); }
   }
 
@@ -600,7 +606,7 @@ function TutorApply() {
         <div style={{ fontFamily: DISPLAY, fontSize: 56, fontWeight: 600, color: OX, lineHeight: 1, marginBottom: 20 }}>✓</div>
         <h1 style={{ fontFamily: DISPLAY, fontSize: "clamp(30px,4.5vw,44px)", fontWeight: 600, marginBottom: 16, letterSpacing: "-.02em", color: INK }}>Application received.</h1>
         <p style={{ fontSize: 16.5, color: MUTED, lineHeight: 1.6 }}>
-          We review every application by hand. We'll verify your university email and reply shortly — you won't appear in the directory until both checks pass. Check {f.email}.
+          We review every application by hand. We'll verify your university email and reply shortly. You won't appear in the directory until both checks pass. Check {f.email}.
         </p>
       </section>
     );
@@ -613,7 +619,7 @@ function TutorApply() {
         Get paid to tell them how you <span style={{ fontStyle: "italic", color: OX }}>just</span> did it.
       </h1>
       <p style={{ fontSize: 17, color: MUTED, lineHeight: 1.6, maxWidth: 540, marginBottom: 44 }}>
-        Current Oxford and Cambridge students only — you'll verify with your university email. You set your subjects, we handle the matching. Takes three minutes.
+        Current Oxford and Cambridge students only, you'll verify with your university email. You set your subjects, we handle the matching. Takes three minutes.
       </p>
 
       <div style={{ display: "grid", gap: 22 }}>
@@ -693,7 +699,11 @@ function TutorApply() {
             {SUBJECTS.map((s) => (
               <button key={s} type="button" className="chip" onClick={() => toggle("subjects", s)} style={chip(f.subjects.includes(s))}>{s}</button>
             ))}
+            <button type="button" className="chip" onClick={() => toggle("subjects", "Other (write in)")} style={chip(f.subjects.includes("Other (write in)"))}>Other (write in)</button>
           </div>
+          {f.subjects.includes("Other (write in)") && (
+            <input style={{ ...field(), marginTop: 10 }} placeholder="Type the subject(s) you tutor, comma separated" value={subjectOther} onChange={(e) => setSubjectOther(e.target.value)} />
+          )}
           {errors.subjects && <div style={ERR}>{errors.subjects}</div>}
         </div>
 
@@ -708,7 +718,7 @@ function TutorApply() {
         </div>
 
         <div>
-          <label style={L}>Your pitch — why should a student pick you?</label>
+          <label style={L}>Your pitch, why should a student pick you?</label>
           <textarea style={{ ...field(errors.blurb), minHeight: 100, resize: "vertical" }} value={f.blurb}
             placeholder="e.g. Sat the NatSci interview at Trinity in 2023. I'll show you how they actually think."
             onChange={(e) => setF({ ...f, blurb: e.target.value })} />
@@ -864,7 +874,7 @@ function AdminPanel() {
               <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
                 <div style={{ flex: 1, minWidth: 260 }}>
                   <strong style={{ fontSize: 17 }}>{t.first_name} {t.last_name}</strong> · {t.uni}, {t.college}<br />
-                  <span style={{ fontSize: 14, color: MUTED }}>{t.course} · {t.study_year} · interview {t.interview_year || "—"}</span><br />
+                  <span style={{ fontSize: 14, color: MUTED }}>{t.course} · {t.study_year} · interview {t.interview_year || "n/a"}</span><br />
                   <span style={{ fontSize: 14, color: OX }}>{t.email} {t.verified ? "✓ verified" : "(unverified)"}</span>
                   <p style={{ fontSize: 14, marginTop: 8 }}>{t.alevels}</p>
                   <p style={{ fontSize: 14, marginTop: 4, color: MUTED }}>{t.subjects?.join(", ")}</p>
@@ -906,7 +916,7 @@ function AdminPanel() {
         <div style={{ display: "grid", gap: 8 }}>
           {payments.map((p) => (
             <div key={p.id} style={{ border: `1px solid ${LINE}`, borderLeft: `3px solid ${p.status === "paid" ? "#0E7C4F" : "#C0392B"}`, padding: "12px 16px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8, fontSize: 14 }}>
-              <span><strong>£{((p.amount_total || 0) / 100).toFixed(2)}</strong> · {p.customer_name || p.customer_email || "—"} · {p.package_label || p.mode}</span>
+              <span><strong>£{((p.amount_total || 0) / 100).toFixed(2)}</strong> · {p.customer_name || p.customer_email || "n/a"} · {p.package_label || p.mode}</span>
               <span style={{ color: MUTED }}>{p.status} · {new Date(p.created_at).toLocaleDateString()}</span>
             </div>
           ))}
