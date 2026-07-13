@@ -30,7 +30,7 @@ const SB_HEADERS = { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content
 
 // Cloudflare Turnstile sitekey — safe to expose (public by design).
 // Empty string = widget disabled. Paste your sitekey here once created.
-const TURNSTILE_SITEKEY = "";
+const TURNSTILE_SITEKEY = "0x4AAAAAAD0jSjJ1r-x4qYm-";
 
 async function fetchTutors() {
   const res = await fetch(
