@@ -53,6 +53,18 @@ const COURSES = [
 ];
 const STAGES = ["A-Level / IB tutoring", "Personal statement", "Admissions test", "Interview preparation"];
 
+// Cambridge Tours: direct-book Stripe Payment Link (£49).
+const TOUR_LINK = "https://buy.stripe.com/REPLACE_WITH_49_TOUR_LINK";
+
+// Universities a tutor may have been admitted to (offers). "Other (write in)" for the long tail.
+const UK_UNIVERSITIES = [
+  "Cambridge", "Oxford", "Imperial College London", "LSE", "UCL",
+  "Edinburgh", "Durham", "Warwick", "Bristol", "St Andrews",
+  "Manchester", "King's College London", "Bath", "Nottingham",
+  "Exeter", "Birmingham", "Glasgow", "Leeds", "Southampton", "York",
+  "Other (write in)",
+];
+
 // ── Supabase (live) ───────────────────────────────────────────
 const SB_URL = "https://gfaxejykbciwwyucucld.supabase.co";
 const SB_KEY = "sb_publishable_bfiVgLUsYheH-vm5Dfeevw_YlzisfJN";
@@ -74,6 +86,7 @@ async function fetchTutors() {
     id: r.id, first: r.first_name, last: r.last_name, uni: r.uni,
     college: r.college, course: r.course, year: r.study_year,
     sat: r.interview_year, alevels: r.alevels,
+    offers: r.offers || [],
     subjects: r.subjects || [], stages: r.stages || [], blurb: r.blurb,
   }));
 }
@@ -86,7 +99,8 @@ async function postTutorApplication(f, turnstileToken) {
       first_name: f.first.trim(), last_name: f.last.trim(), email: f.email.trim(),
       uni: f.uni, college: f.college.trim(), course: f.course,
       study_year: f.year.trim() || null, interview_year: f.sat ? Number(f.sat) : null,
-      alevels: f.alevels.trim() || null, subjects: f.subjects, stages: f.stages,
+      alevels: f.alevels.trim() || null, offers: f.offers || [],
+      subjects: f.subjects, stages: f.stages,
       blurb: f.blurb.trim(), website: f.website || "", turnstileToken: turnstileToken || "",
     }),
   });
@@ -111,6 +125,22 @@ async function postEnquiry(f, turnstileToken) {
   if (!res.ok) throw new Error(`enquiry failed: ${res.status}`);
 }
 
+async function postSupport(f, turnstileToken) {
+  const res = await fetch(`${SB_URL}/functions/v1/submit-support`, {
+    method: "POST",
+    headers: SB_HEADERS,
+    body: JSON.stringify({
+      name: f.name.trim(), email: f.email.trim(), kind: f.kind,
+      current_tutor: f.currentTutor.trim() || null, message: f.message.trim(),
+      website: f.website || "", turnstileToken: turnstileToken || "",
+    }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `support request failed: ${res.status}`);
+  }
+}
+
 
 // Tutor data now loads live from Supabase (see fetchTutors).
 
@@ -121,6 +151,7 @@ export default function App() {
     const h = window.location.hash;
     const p = window.location.pathname;
     if (h === "#apply" || p === "/apply" || p === "/apply/") return "apply";
+    if (h === "#help" || p === "/help" || p === "/help/") return "support";
     if (h === "#admin" || p === "/admin" || p === "/admin/") return "admin";
     return "home";
   };
@@ -179,10 +210,12 @@ export default function App() {
       <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 40px", borderBottom: `1px solid ${LINE}`, position: "sticky", top: 0, background: WHITE, zIndex: 20 }}>
         <a href="#" onClick={() => setRoute("home")} style={{ fontFamily: DISPLAY, fontSize: 25, fontWeight: 700, color: OX, letterSpacing: "-.01em" }}>Second Year</a>
         {route === "home" ? (
-          <nav style={{ display: "flex", gap: 30, fontSize: 15, alignItems: "center" }}>
+          <nav style={{ display: "flex", gap: 28, fontSize: 15, alignItems: "center" }}>
             <a href="#story">Our story</a>
             <a href="#tutors">Tutors</a>
+            <a href="#tours">Tours</a>
             <a href="#apply" style={{ color: MUTED }}>For tutors</a>
+            <a href="#help" style={{ color: MUTED }}>Help</a>
             <a href="#enquire" onClick={() => openEnquiry("")} style={{ background: OX, color: WHITE, padding: "10px 20px", fontWeight: 500 }}>Enquire</a>
           </nav>
         ) : (
@@ -192,7 +225,7 @@ export default function App() {
         )}
       </header>
 
-      {route === "admin" ? <AdminPanel /> : route === "apply" ? <TutorApply /> : (<>
+      {route === "admin" ? <AdminPanel /> : route === "apply" ? <TutorApply /> : route === "support" ? <SupportForm /> : (<>
 
       {/* ── HERO ── */}
       <section style={{ maxWidth: 1080, margin: "0 auto", padding: "clamp(64px,10vw,128px) 40px clamp(52px,7vw,88px)" }}>
@@ -260,6 +293,46 @@ export default function App() {
         </div>
       </section>
 
+      {/* ── WHITE: Cambridge Tours ── */}
+      <section id="tours" style={{ maxWidth: 1080, margin: "0 auto", padding: "clamp(60px,8vw,100px) 40px" }}>
+        <div style={{ border: `1px solid ${LINE}`, borderTop: `3px solid ${CAM}`, padding: "clamp(32px,5vw,56px)", display: "grid", gridTemplateColumns: "1fr", gap: 28 }}>
+          <div>
+            <p style={{ fontSize: 13, letterSpacing: ".16em", textTransform: "uppercase", color: MUTED, fontWeight: 600, marginBottom: 18 }}>In person · Cambridge</p>
+            <h2 style={{ fontFamily: DISPLAY, fontSize: "clamp(30px,4.5vw,46px)", color: INK, fontWeight: 600, lineHeight: 1.05, letterSpacing: "-.02em", marginBottom: 18, maxWidth: 640 }}>
+              A Cambridge tour with someone who lives it.
+            </h2>
+            <p style={{ fontSize: 17, color: MUTED, lineHeight: 1.6, maxWidth: 620 }}>
+              Walk the city and a college with a current student. It's the honest version: what a supervision actually feels like, how you pick a college, references, life beyond the prospectus, and every question a glossy open day dodges. Bring the whole list.
+            </p>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 20 }}>
+            {[
+              ["College tour", "See a real college from the inside, not the open-day route."],
+              ["Choosing a college", "How the choice actually matters, and how much it doesn't."],
+              ["References & applications", "What tutors look for, from people who wrote and read them recently."],
+              ["Life at Oxbridge", "Workload, terms, cost, social life. The unfiltered picture."],
+            ].map(([h, s]) => (
+              <div key={h}>
+                <h3 style={{ fontFamily: DISPLAY, fontSize: 19, color: INK, fontWeight: 600, marginBottom: 6 }}>{h}</h3>
+                <p style={{ fontSize: 14.5, color: MUTED, lineHeight: 1.55 }}>{s}</p>
+              </div>
+            ))}
+          </div>
+          <div style={{ borderTop: `1px solid ${LINE}`, paddingTop: 24, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+            <div>
+              <div style={{ fontFamily: DISPLAY, fontSize: 28, fontWeight: 600, color: OX }}>£49</div>
+              <p style={{ fontSize: 13.5, color: MUTED, marginTop: 4, maxWidth: 420 }}>
+                Available during term time. Outside term, subject to availability, ask and we'll do our best.
+              </p>
+            </div>
+            <a href={TOUR_LINK} target="_blank" rel="noopener noreferrer"
+              style={{ background: OX, color: WHITE, padding: "15px 32px", fontWeight: 600, fontSize: 16, whiteSpace: "nowrap" }}>
+              Book a tour
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* ── WHITE: directory ── */}
       <section id="tutors" style={{ maxWidth: 1080, margin: "0 auto", padding: "clamp(60px,8vw,100px) 40px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 20, marginBottom: 34 }}>
@@ -306,6 +379,8 @@ export default function App() {
 
       <footer style={{ padding: "36px 40px", textAlign: "center", color: MUTED, fontSize: 13, borderTop: `1px solid ${LINE}` }}>
         <div style={{ marginBottom: 10 }}>
+          <a href="#help" style={{ color: MUTED, textDecoration: "underline" }}>Help &amp; changes</a>
+          <span style={{ margin: "0 10px", color: LINE }}>·</span>
           <a href="#privacy" onClick={(e) => { e.preventDefault(); document.getElementById("privacy-modal").style.display = "flex"; }} style={{ color: MUTED, textDecoration: "underline" }}>Privacy notice</a>
         </div>
         Second Year, not affiliated with or endorsed by the Universities of Oxford or Cambridge.
@@ -336,6 +411,17 @@ function Card({ t, onRequest }) {
         <div style={{ fontSize: 10.5, letterSpacing: ".1em", textTransform: "uppercase", color: MUTED, fontWeight: 600, marginBottom: 4 }}>A-Levels achieved</div>
         <div style={{ fontSize: 14, color: INK, fontWeight: 500 }}>{t.alevels}</div>
       </div>
+
+      {/* Where they got in: the uni they attend, plus any other offers */}
+      {(() => {
+        const admitted = [t.uni, ...(t.offers || []).filter((o) => o && o !== t.uni)];
+        return (
+          <div style={{ background: "#F7F8FA", border: `1px solid ${LINE}`, padding: "10px 12px", marginBottom: 16 }}>
+            <div style={{ fontSize: 10.5, letterSpacing: ".1em", textTransform: "uppercase", color: MUTED, fontWeight: 600, marginBottom: 4 }}>Admitted to</div>
+            <div style={{ fontSize: 14, color: INK, fontWeight: 500 }}>{admitted.join(" · ")}</div>
+          </div>
+        );
+      })()}
 
       <p style={{ fontFamily: DISPLAY, fontSize: 17.5, lineHeight: 1.45, color: INK, marginBottom: 18, fontWeight: 500 }}>{t.blurb}</p>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 22 }}>
@@ -554,6 +640,8 @@ function TutorApply() {
   const [alevelPicks, setAlevelPicks] = useState([]);
   const [alevelOther, setAlevelOther] = useState("");
   const [subjectOther, setSubjectOther] = useState("");
+  const [offerPicks, setOfferPicks] = useState([]);
+  const [offerOther, setOfferOther] = useState("");
   const [errors, setErrors] = useState({});
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
@@ -589,7 +677,11 @@ function TutorApply() {
       ...f.subjects.filter((a) => a !== "Other (write in)"),
       ...(subjectOther.trim() ? subjectOther.split(",").map((s) => s.trim()).filter(Boolean) : []),
     ];
-    const fWithComposed = { ...f, alevels: composedAlevels, subjects: composedSubjects };
+    const composedOffers = [
+      ...offerPicks.filter((o) => o !== "Other (write in)"),
+      ...(offerOther.trim() ? offerOther.split(",").map((o) => o.trim()).filter(Boolean) : []),
+    ];
+    const fWithComposed = { ...f, alevels: composedAlevels, subjects: composedSubjects, offers: composedOffers };
     try { await postTutorApplication(fWithComposed, tsToken); setSent(true); window.scrollTo({ top: 0, behavior: "smooth" }); }
     catch (err) { setSendError(err.message || "That didn't go through, try again."); }
     finally { setSending(false); }
@@ -708,6 +800,19 @@ function TutorApply() {
         </div>
 
         <div>
+          <label style={L}>Universities you got into <span style={{ fontWeight: 400, color: MUTED }}>(shown on your profile)</span></label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {UK_UNIVERSITIES.map((u) => (
+              <button key={u} type="button" className="chip" onClick={() => setOfferPicks((s) => s.includes(u) ? s.filter((x) => x !== u) : [...s, u])} style={chip(offerPicks.includes(u))}>{u}</button>
+            ))}
+          </div>
+          {offerPicks.includes("Other (write in)") && (
+            <input style={{ ...field(), marginTop: 10 }} placeholder="Type other universities you were admitted to, comma separated" value={offerOther} onChange={(e) => setOfferOther(e.target.value)} />
+          )}
+          <p style={{ fontSize: 12.5, color: MUTED, marginTop: 6 }}>Include the one you attend and any other offers. Optional, but it strengthens your profile.</p>
+        </div>
+
+        <div>
           <label style={L}>Stages you cover</label>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {STAGES.map((s) => (
@@ -734,6 +839,111 @@ function TutorApply() {
         <Turnstile onToken={setTsToken} />
         <button onClick={submit} disabled={sending} style={{ background: OX, color: WHITE, padding: "16px", fontWeight: 600, fontSize: 16, border: "none", cursor: sending ? "wait" : "pointer", opacity: sending ? 0.7 : 1 }}>
           {sending ? "Sending…" : "Submit application"}
+        </button>
+        {sendError && <p style={{ color: "#C0392B", fontSize: 14, textAlign: "center" }}>{sendError}</p>}
+      </div>
+    </section>
+  );
+}
+
+// ── Help / change tutor form (the /#help route) ──────────────
+function SupportForm() {
+  const KINDS = ["Change my tutor", "Problem with a session", "Question about a match", "Billing / payment", "Something else"];
+  const [f, setF] = useState({ name: "", email: "", kind: "", currentTutor: "", message: "", website: "" });
+  const [errors, setErrors] = useState({});
+  const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState("");
+  const [tsToken, setTsToken] = useState("");
+
+  function validate() {
+    const e = {};
+    if (!f.name.trim()) e.name = "Tell us who you are";
+    if (!/^\S+@\S+\.\S+$/.test(f.email)) e.email = "We need a valid email to reply";
+    if (!f.kind) e.kind = "Pick what this is about";
+    if (f.message.trim().length < 5) e.message = "Add a short message";
+    setErrors(e);
+    return !Object.keys(e).length;
+  }
+  async function submit() {
+    if (!validate() || sending) return;
+    setSending(true); setSendError("");
+    try { await postSupport(f, tsToken); setSent(true); window.scrollTo({ top: 0, behavior: "smooth" }); }
+    catch (err) { setSendError(err.message || "That didn't go through, try again."); }
+    finally { setSending(false); }
+  }
+
+  const L = { fontSize: 13, fontWeight: 600, marginBottom: 7, display: "block", color: INK };
+  const field = (err) => ({ padding: "12px 14px", border: `1px solid ${err ? "#C0392B" : LINE}`, background: WHITE, color: INK, fontSize: 15, borderRadius: 2, outline: "none" });
+  const ERR = { color: "#C0392B", fontSize: 12.5, marginTop: 5 };
+  const chip = (on) => ({ padding: "9px 15px", borderRadius: 2, fontSize: 14, fontWeight: 500, width: "auto", cursor: "pointer", border: `1px solid ${on ? OX : LINE}`, background: on ? OX : WHITE, color: on ? WHITE : INK });
+
+  if (sent) {
+    return (
+      <section style={{ maxWidth: 560, margin: "0 auto", padding: "clamp(80px,12vw,140px) 40px", textAlign: "center" }}>
+        <div style={{ fontFamily: DISPLAY, fontSize: 56, fontWeight: 600, color: OX, lineHeight: 1, marginBottom: 20 }}>✓</div>
+        <h1 style={{ fontFamily: DISPLAY, fontSize: "clamp(30px,4.5vw,44px)", fontWeight: 600, marginBottom: 16, letterSpacing: "-.02em", color: INK }}>Message sent.</h1>
+        <p style={{ fontSize: 16.5, color: MUTED, lineHeight: 1.6 }}>
+          Thanks, we've got it. A real person will reply, usually within a day. Check {f.email}.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section style={{ maxWidth: 640, margin: "0 auto", padding: "clamp(48px,7vw,80px) 40px clamp(64px,9vw,104px)" }}>
+      <p style={{ fontSize: 13, letterSpacing: ".16em", textTransform: "uppercase", color: MUTED, fontWeight: 600, marginBottom: 22 }}>Help &amp; changes</p>
+      <h1 style={{ fontFamily: DISPLAY, fontWeight: 600, fontSize: "clamp(34px,5.5vw,56px)", lineHeight: 1.04, letterSpacing: "-.025em", color: INK, marginBottom: 18 }}>
+        Need to change something?
+      </h1>
+      <p style={{ fontSize: 17, color: MUTED, lineHeight: 1.6, maxWidth: 540, marginBottom: 44 }}>
+        Want a different tutor, hit a snag, or just have a question? Tell us here and it goes straight to the team. No wrong reason to write.
+      </p>
+
+      <div style={{ display: "grid", gap: 22 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div>
+            <label style={L}>Your name</label>
+            <input style={field(errors.name)} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+            {errors.name && <div style={ERR}>{errors.name}</div>}
+          </div>
+          <div>
+            <label style={L}>Email</label>
+            <input style={field(errors.email)} value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="you@example.com" />
+            {errors.email && <div style={ERR}>{errors.email}</div>}
+          </div>
+        </div>
+
+        <div>
+          <label style={L}>What's this about?</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {KINDS.map((k) => (
+              <button key={k} type="button" className="chip" onClick={() => setF({ ...f, kind: k })} style={chip(f.kind === k)}>{k}</button>
+            ))}
+          </div>
+          {errors.kind && <div style={ERR}>{errors.kind}</div>}
+        </div>
+
+        <div>
+          <label style={L}>Current tutor <span style={{ fontWeight: 400, color: MUTED }}>(optional)</span></label>
+          <input style={field()} value={f.currentTutor} onChange={(e) => setF({ ...f, currentTutor: e.target.value })} placeholder="If this is about a specific tutor, name them." />
+        </div>
+
+        <div>
+          <label style={L}>Your message</label>
+          <textarea style={{ ...field(errors.message), minHeight: 120, resize: "vertical" }} value={f.message} onChange={(e) => setF({ ...f, message: e.target.value })} placeholder="Tell us what you need. The more detail, the faster we can help." />
+          {errors.message && <div style={ERR}>{errors.message}</div>}
+        </div>
+
+        {/* Honeypot */}
+        <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", height: 0, overflow: "hidden" }}>
+          <label>Website</label>
+          <input tabIndex={-1} autoComplete="off" value={f.website} onChange={(e) => setF({ ...f, website: e.target.value })} />
+        </div>
+
+        <Turnstile onToken={setTsToken} />
+        <button onClick={submit} disabled={sending} style={{ background: OX, color: WHITE, padding: "16px", fontWeight: 600, fontSize: 16, border: "none", cursor: sending ? "wait" : "pointer", opacity: sending ? 0.7 : 1 }}>
+          {sending ? "Sending…" : "Send message"}
         </button>
         {sendError && <p style={{ color: "#C0392B", fontSize: 14, textAlign: "center" }}>{sendError}</p>}
       </div>
@@ -936,6 +1146,7 @@ function EditModal({ tutor, onClose, onSave }) {
     course: tutor.course || "", study_year: tutor.study_year || "",
     interview_year: tutor.interview_year || "", alevels: tutor.alevels || "",
     subjects: (tutor.subjects || []).join(", "), stages: (tutor.stages || []).join(", "),
+    offers: (tutor.offers || []).join(", "),
     blurb: tutor.blurb || "",
   });
   const set = (k) => (ev) => setE({ ...e, [k]: ev.target.value });
@@ -951,6 +1162,7 @@ function EditModal({ tutor, onClose, onSave }) {
       alevels: e.alevels.trim() || null,
       subjects: e.subjects.split(",").map((s) => s.trim()).filter(Boolean),
       stages: e.stages.split(",").map((s) => s.trim()).filter(Boolean),
+      offers: e.offers.split(",").map((s) => s.trim()).filter(Boolean),
       blurb: e.blurb.trim(),
     });
   }
@@ -979,6 +1191,7 @@ function EditModal({ tutor, onClose, onSave }) {
         </div>
         <label style={lab}>A-Levels</label><input style={inp} value={e.alevels} onChange={set("alevels")} />
         <label style={lab}>Subjects (comma separated)</label><input style={inp} value={e.subjects} onChange={set("subjects")} />
+        <label style={lab}>Admitted to (comma separated)</label><input style={inp} value={e.offers} onChange={set("offers")} />
         <label style={lab}>Stages (comma separated)</label><input style={inp} value={e.stages} onChange={set("stages")} />
         <label style={lab}>Pitch</label><textarea style={{ ...inp, minHeight: 90, resize: "vertical" }} value={e.blurb} onChange={set("blurb")} />
         <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
