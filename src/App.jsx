@@ -54,7 +54,7 @@ const COURSES = [
 const STAGES = ["A-Level / IB tutoring", "Personal statement", "Admissions test", "Interview preparation"];
 
 // Cambridge Tours: direct-book Stripe Payment Link (£49).
-const TOUR_LINK = "https://buy.stripe.com/REPLACE_WITH_49_TOUR_LINK";
+const TOUR_LINK = "https://buy.stripe.com/6oU7sNboc6JHeOC0W41wY06";
 
 // Universities a tutor may have been admitted to (offers). "Other (write in)" for the long tail.
 const UK_UNIVERSITIES = [
