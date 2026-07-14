@@ -1085,7 +1085,8 @@ function TourBooking({ onClose }) {
       const { url, id } = await postTour(f, tsToken);
       // Attach the tour_requests row id so the webhook can mark exactly this row paid.
       const base = url || TOUR_LINK;
-      const dest = id ? `${base}?client_reference_id=${encodeURIComponent(id)}` : base;
+      const sep = base.includes("?") ? "&" : "?";
+      const dest = id ? `${base}${sep}client_reference_id=${encodeURIComponent(id)}` : base;
       window.location.href = dest;
     } catch (err) {
       setSendError(err.message || "That didn't go through, try again.");
@@ -1316,6 +1317,13 @@ function AdminPanel() {
     try { await callAdmin(action, { id }); await refresh(); } catch (e) { setErr(e.message); }
   }
   async function saveEdit(id, fields) {
+    async function refreshTours() {
+    try { const tr = await callAdmin("tours"); setTours(tr.tours || []); } catch (e) { setErr(e.message); }
+  }
+  async function tourAct(id, action, extra = {}) {
+    if (action === "tour_delete" && !confirm("Delete permanently? Use Cancel instead for real bookings.")) return;
+    try { await callAdmin(action, { id, ...extra }); await refreshTours(); } catch (e) { setErr(e.message); }
+  }
     try {
       if (id) { await callAdmin("edit", { id, fields }); }
       else { await callAdmin("create", { fields }); }
@@ -1412,7 +1420,18 @@ function AdminPanel() {
                   <span style={{ color: MUTED, fontSize: 13 }}>{(t.colleges || []).join(", ")} · {t.email}</span>
                   {t.notes && <span style={{ color: MUTED, fontSize: 13, display: "block", marginTop: 2 }}>{t.notes}</span>}
                 </span>
-                <span style={{ color: t.paid ? "#0E7C4F" : "#B8860B", fontWeight: 600, whiteSpace: "nowrap" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 12, whiteSpace: "nowrap", flexWrap: "wrap" }}>
+                  <span style={{ color: t.paid ? "#0E7C4F" : "#B8860B", fontWeight: 600 }}>
+                    {t.paid ? `✓ Paid ${t.paid_at ? new Date(t.paid_at).toLocaleDateString() : ""}` : "Awaiting payment"}
+                  </span>
+                  {t.status && t.status !== "requested" && (
+                    <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: ".06em", color: t.status === "cancelled" ? "#C0392B" : "#0E7C4F", border: `1px solid ${LINE}`, padding: "2px 7px" }}>{t.status}</span>
+                  )}
+                  <button onClick={() => tourAct(t.id, t.paid ? "tour_mark_unpaid" : "tour_mark_paid")} style={{ border: "none", background: "none", color: OX, cursor: "pointer", fontSize: 13 }}>{t.paid ? "Mark unpaid" : "Mark paid"}</button>
+                  {t.status !== "confirmed" && <button onClick={() => tourAct(t.id, "tour_status", { status: "confirmed" })} style={{ border: "none", background: "none", color: "#0E7C4F", cursor: "pointer", fontSize: 13 }}>Confirm</button>}
+                  {t.status !== "cancelled" && <button onClick={() => tourAct(t.id, "tour_status", { status: "cancelled" })} style={{ border: "none", background: "none", color: "#B8860B", cursor: "pointer", fontSize: 13 }}>Cancel</button>}
+                  <button onClick={() => tourAct(t.id, "tour_delete")} style={{ border: "none", background: "none", color: "#C0392B", cursor: "pointer", fontSize: 13 }}>Delete</button>
+                </span>? "#0E7C4F" : "#B8860B", fontWeight: 600, whiteSpace: "nowrap" }}>
                   {t.paid ? `✓ Paid ${t.paid_at ? new Date(t.paid_at).toLocaleDateString() : ""}` : "Awaiting payment"}
                 </span>
               </div>
@@ -1421,7 +1440,7 @@ function AdminPanel() {
         </div>
       )}
 
-      <h2 style={{ fontFamily: DISPLAY, fontSize: 22, color: INK, marginBottom: 6 }}>Payments</h2>
+      <h2 style={{ fontFamily: DISPLAY, fontSize: 22, color: INK, marginBottom: 6 }}>Tutoring payments <span style={{ fontSize: 13, fontWeight: 400, color: MUTED }}>(tours tracked separately above)</span></h2>
       {(() => {
         const total = payments.filter((p) => p.status === "paid").reduce((s, p) => s + (p.amount_total || 0), 0);
         return <p style={{ color: MUTED, fontSize: 14, marginBottom: 16 }}>Total received: <strong style={{ color: OX }}>£{(total / 100).toFixed(2)}</strong> across {payments.length} payment{payments.length === 1 ? "" : "s"}.</p>;
