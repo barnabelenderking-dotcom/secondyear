@@ -1085,8 +1085,8 @@ function TourBooking({ onClose }) {
       const { url, id } = await postTour(f, tsToken);
       // Attach the tour_requests row id so the webhook can mark exactly this row paid.
       const base = url || TOUR_LINK;
-      const sep = base.includes("?") ? "&" : "?";
-      const dest = id ? `${base}${sep}client_reference_id=${encodeURIComponent(id)}` : base;
+const sep = base.includes("?") ? "&" : "?";
+      const dest = id ? base + sep + "client_reference_id=" + encodeURIComponent(id) : base;
       window.location.href = dest;
     } catch (err) {
       setSendError(err.message || "That didn't go through, try again.");
@@ -1422,17 +1422,15 @@ function AdminPanel() {
                 </span>
                 <span style={{ display: "flex", alignItems: "center", gap: 12, whiteSpace: "nowrap", flexWrap: "wrap" }}>
                   <span style={{ color: t.paid ? "#0E7C4F" : "#B8860B", fontWeight: 600 }}>
-                    {t.paid ? `✓ Paid ${t.paid_at ? new Date(t.paid_at).toLocaleDateString() : ""}` : "Awaiting payment"}
+                    {t.paid ? "✓ Paid " + (t.paid_at ? new Date(t.paid_at).toLocaleDateString() : "") : "Awaiting payment"}
                   </span>
                   {t.status && t.status !== "requested" && (
-                    <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: ".06em", color: t.status === "cancelled" ? "#C0392B" : "#0E7C4F", border: `1px solid ${LINE}`, padding: "2px 7px" }}>{t.status}</span>
+                    <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: ".06em", color: t.status === "cancelled" ? "#C0392B" : "#0E7C4F", border: "1px solid " + LINE, padding: "2px 7px" }}>{t.status}</span>
                   )}
                   <button onClick={() => tourAct(t.id, t.paid ? "tour_mark_unpaid" : "tour_mark_paid")} style={{ border: "none", background: "none", color: OX, cursor: "pointer", fontSize: 13 }}>{t.paid ? "Mark unpaid" : "Mark paid"}</button>
                   {t.status !== "confirmed" && <button onClick={() => tourAct(t.id, "tour_status", { status: "confirmed" })} style={{ border: "none", background: "none", color: "#0E7C4F", cursor: "pointer", fontSize: 13 }}>Confirm</button>}
                   {t.status !== "cancelled" && <button onClick={() => tourAct(t.id, "tour_status", { status: "cancelled" })} style={{ border: "none", background: "none", color: "#B8860B", cursor: "pointer", fontSize: 13 }}>Cancel</button>}
                   <button onClick={() => tourAct(t.id, "tour_delete")} style={{ border: "none", background: "none", color: "#C0392B", cursor: "pointer", fontSize: 13 }}>Delete</button>
-                </span>? "#0E7C4F" : "#B8860B", fontWeight: 600, whiteSpace: "nowrap" }}>
-                  {t.paid ? `✓ Paid ${t.paid_at ? new Date(t.paid_at).toLocaleDateString() : ""}` : "Awaiting payment"}
                 </span>
               </div>
             );
