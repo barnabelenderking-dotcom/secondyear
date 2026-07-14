@@ -35,26 +35,95 @@ const ALEVEL_SUBJECTS = [
   "Physical Education", "Environmental Science", "Geology", "Statistics",
   "Other (write in)",
 ];
+// Undergraduate degree courses (what a tutor READS at university).
+// Merged Oxford + Cambridge official course names, deduplicated, alphabetical.
+// Cambridge list: cam.ac.uk/courses. Oxford single + major joint honours: ox.ac.uk.
 const COURSES = [
-  // Sciences & Medicine
-  "Medicine", "Veterinary Medicine", "Natural Sciences", "Biological Sciences",
-  "Biochemistry", "Biomedical Sciences", "Physics", "Chemistry", "Materials Science",
-  "Earth Sciences", "Engineering", "Chemical Engineering", "Computer Science",
-  "Mathematics", "Mathematics & Physics", "Psychology", "PBS (Psychological & Behavioural Sciences)",
-  // Social sciences
-  "Economics", "PPE (Philosophy, Politics & Economics)", "HSPS (Human, Social & Political Sciences)",
-  "Land Economy", "Geography", "Human Sciences", "Archaeology", "Anthropology",
-  // Humanities
-  "Law", "History", "History & Politics", "History & Economics", "History of Art",
-  "English", "Philosophy", "Theology & Religious Studies", "Classics",
-  "Asian & Middle Eastern Studies", "MML (Modern & Medieval Languages)",
-  "Linguistics", "Music", "Education", "Fine Art", "Architecture",
+  // Undergraduate degree courses (what a tutor READS at university).
+  // Merged Oxford + Cambridge official course names, deduplicated, alphabetical.
+  // Cambridge: cam.ac.uk/courses. Oxford single + major joint honours: ox.ac.uk.
+  "Anglo-Saxon, Norse & Celtic",
+  "Anthropology (incl. Archaeology & Anthropology)",
+  "Archaeology",
+  "Architecture",
+  "Asian & Middle Eastern Studies",
+  "Biochemistry",
+  "Biology",
+  "Biomedical Sciences",
+  "Chemical Engineering (incl. Biotechnology)",
+  "Chemistry",
+  "Classics",
+  "Computer Science",
+  "Computer Science & Philosophy",
+  "Design",
+  "Earth Sciences",
+  "Economics",
+  "Economics & Management",
+  "Education",
+  "Engineering",
+  "English",
+  "English & Modern Languages",
+  "Fine Art",
+  "Geography",
+  "History",
+  "History & Economics",
+  "History & Modern Languages",
+  "History & Politics",
+  "History of Art",
+  "HSPS (Human, Social & Political Sciences)",
+  "Human Sciences",
+  "Land Economy",
+  "Law",
+  "Linguistics",
+  "Materials Science",
+  "Mathematics",
+  "Mathematics & Philosophy",
+  "Medicine",
+  "MML (Modern & Medieval Languages)",
+  "Music",
+  "Natural Sciences",
+  "PBS (Psychological & Behavioural Sciences)",
+  "Philosophy",
+  "Philosophy & Modern Languages",
+  "Philosophy & Theology",
+  "Physics",
+  "Physics & Philosophy",
+  "PPE (Philosophy, Politics & Economics)",
+  "PPL (Psychology, Philosophy & Linguistics)",
+  "Psychology",
+  "Religion & Theology",
+  "Veterinary Medicine",
   "Other (write in)",
 ];
 const STAGES = ["A-Level / IB tutoring", "Personal statement", "Admissions test", "Interview preparation"];
 
 // Cambridge Tours: direct-book Stripe Payment Link (£49).
 const TOUR_LINK = "https://buy.stripe.com/6oU7sNboc6JHeOC0W41wY06";
+
+// Cambridge undergraduate colleges (for the tour college picker).
+const CAMBRIDGE_COLLEGES = [
+  "Christ's", "Churchill", "Clare", "Corpus Christi", "Downing", "Emmanuel",
+  "Fitzwilliam", "Girton", "Gonville & Caius", "Homerton", "Hughes Hall",
+  "Jesus", "King's", "Lucy Cavendish", "Magdalene", "Murray Edwards",
+  "Newnham", "Pembroke", "Peterhouse", "Queens'", "Robinson", "St Catharine's",
+  "St Edmund's", "St John's", "Selwyn", "Sidney Sussex", "Trinity",
+  "Trinity Hall", "Wolfson",
+];
+
+// Cambridge FULL TERM windows (when students are in residence; source: cam.ac.uk).
+// Used to colour the calendar. Out-of-term dates remain bookable.
+const CAM_FULL_TERMS = [
+  { name: "Michaelmas 2025", start: "2025-10-07", end: "2025-12-05" },
+  { name: "Lent 2026", start: "2026-01-20", end: "2026-03-20" },
+  { name: "Easter 2026", start: "2026-04-28", end: "2026-06-19" },
+  { name: "Michaelmas 2026", start: "2026-10-06", end: "2026-12-04" },
+  { name: "Lent 2027", start: "2027-01-19", end: "2027-03-20" },
+  { name: "Easter 2027", start: "2027-04-27", end: "2027-06-18" },
+];
+
+function isInTerm(dateStr) {
+  return CAM_FULL_TERMS.some((t) => dateStr >= t.start && dateStr <= t.end);
+}
 
 // Universities a tutor may have been admitted to (offers). "Other (write in)" for the long tail.
 const UK_UNIVERSITIES = [
@@ -141,6 +210,21 @@ async function postSupport(f, turnstileToken) {
   }
 }
 
+async function postTour(f, turnstileToken) {
+  const res = await fetch(`${SB_URL}/functions/v1/submit-tour`, {
+    method: "POST",
+    headers: SB_HEADERS,
+    body: JSON.stringify({
+      name: f.name.trim(), email: f.email.trim(), tour_date: f.date,
+      colleges: f.colleges, notes: f.notes.trim() || null,
+      website: f.website || "", turnstileToken: turnstileToken || "",
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `tour request failed: ${res.status}`);
+  return { url: data.url, id: data.id }; // Stripe URL + tour_requests row id
+}
+
 
 // Tutor data now loads live from Supabase (see fetchTutors).
 
@@ -162,8 +246,9 @@ export default function App() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
-  const [filters, setFilters] = useState({ uni: "", course: "", subject: "", stage: "" });
+  const [filters, setFilters] = useState({ uni: "", course: "", stage: "" });
   const [enquiry, setEnquiry] = useState(null); // null | prefilled tutor name
+  const [tourOpen, setTourOpen] = useState(false);
   const [tutors, setTutors] = useState([]);
   const [loadState, setLoadState] = useState("loading"); // loading | ready | error
 
@@ -178,7 +263,6 @@ export default function App() {
   const shown = useMemo(() => tutors.filter((t) => {
     if (filters.uni && t.uni !== filters.uni) return false;
     if (filters.course && t.course !== filters.course) return false;
-    if (filters.subject && !t.subjects.includes(filters.subject)) return false;
     if (filters.stage && !t.stages.includes(filters.stage)) return false;
     return true;
   }), [tutors, filters]);
@@ -325,10 +409,10 @@ export default function App() {
                 Available during term time. Outside term, subject to availability, ask and we'll do our best.
               </p>
             </div>
-            <a href={TOUR_LINK} target="_blank" rel="noopener noreferrer"
-              style={{ background: OX, color: WHITE, padding: "15px 32px", fontWeight: 600, fontSize: 16, whiteSpace: "nowrap" }}>
+            <button onClick={() => setTourOpen(true)}
+              style={{ background: OX, color: WHITE, padding: "15px 32px", fontWeight: 600, fontSize: 16, whiteSpace: "nowrap", border: "none", cursor: "pointer" }}>
               Book a tour
-            </a>
+            </button>
           </div>
         </div>
       </section>
@@ -341,15 +425,15 @@ export default function App() {
         </div>
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 34 }}>
-          {[["uni", "university", ["Oxford", "Cambridge"]], ["course", "course", COURSES], ["subject", "subject", SUBJECTS], ["stage", "stage", STAGES]].map(([key, label, opts]) => (
+          {[["uni", "university", ["Oxford", "Cambridge"]], ["course", "course", COURSES], ["stage", "stage", STAGES]].map(([key, label, opts]) => (
             <select key={key} value={filters[key]} onChange={(e) => setFilters((f) => ({ ...f, [key]: e.target.value }))}
               style={{ padding: "12px 14px", border: `1px solid ${LINE}`, background: WHITE, color: INK, fontSize: 14.5, minWidth: 150, width: "auto" }}>
               <option value="">{`Any ${label}`}</option>
               {opts.map((o) => <option key={o}>{o}</option>)}
             </select>
           ))}
-          {(filters.uni || filters.course || filters.subject || filters.stage) && (
-            <button onClick={() => setFilters({ uni: "", course: "", subject: "", stage: "" })}
+          {(filters.uni || filters.course || filters.stage) && (
+            <button onClick={() => setFilters({ uni: "", course: "", stage: "" })}
               style={{ padding: "12px 16px", border: "none", background: "transparent", color: OX, fontWeight: 600, fontSize: 14, cursor: "pointer", width: "auto" }}>Clear</button>
           )}
         </div>
@@ -387,6 +471,7 @@ export default function App() {
       </footer>
 
       <PrivacyModal />
+      {tourOpen && <TourBooking onClose={() => setTourOpen(false)} />}
     </div>
   );
 }
@@ -951,6 +1036,188 @@ function SupportForm() {
   );
 }
 
+// ── Cambridge Tour booking modal (calendar + colleges, then Stripe) ──
+function TourBooking({ onClose }) {
+  const today = new Date();
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth()); // 0-11
+  const [f, setF] = useState({ name: "", email: "", date: "", colleges: [], notes: "", website: "" });
+  const [errors, setErrors] = useState({});
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState("");
+  const [tsToken, setTsToken] = useState("");
+
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+  function pad(n) { return String(n).padStart(2, "0"); }
+  function dateStr(y, m, d) { return `${y}-${pad(m + 1)}-${pad(d)}`; }
+
+  function prevMonth() {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear((y) => y - 1); }
+    else setViewMonth((m) => m - 1);
+  }
+  function nextMonth() {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear((y) => y + 1); }
+    else setViewMonth((m) => m + 1);
+  }
+
+  function toggleCollege(c) {
+    setF((s) => {
+      if (s.colleges.includes(c)) return { ...s, colleges: s.colleges.filter((x) => x !== c) };
+      if (s.colleges.length >= 3) return s; // cap at 3
+      return { ...s, colleges: [...s.colleges, c] };
+    });
+  }
+
+  function validate() {
+    const e = {};
+    if (!f.name.trim()) e.name = "Your name";
+    if (!/^\S+@\S+\.\S+$/.test(f.email)) e.email = "A valid email";
+    if (!f.date) e.date = "Choose a date";
+    if (f.colleges.length < 1) e.colleges = "Pick up to 3 colleges";
+    setErrors(e);
+    return !Object.keys(e).length;
+  }
+  async function submit() {
+    if (!validate() || sending) return;
+    setSending(true); setSendError("");
+    try {
+      const { url, id } = await postTour(f, tsToken);
+      // Attach the tour_requests row id so the webhook can mark exactly this row paid.
+      const base = url || TOUR_LINK;
+      const dest = id ? `${base}?client_reference_id=${encodeURIComponent(id)}` : base;
+      window.location.href = dest;
+    } catch (err) {
+      setSendError(err.message || "That didn't go through, try again.");
+      setSending(false);
+    }
+  }
+
+  // Build calendar grid for the viewed month.
+  const firstDay = new Date(viewYear, viewMonth, 1);
+  const startWeekday = (firstDay.getDay() + 6) % 7; // Monday-first
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const monthName = firstDay.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  const cells = [];
+  for (let i = 0; i < startWeekday; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  const TERM_BG = "#E7F7F3"; // light Cambridge tint
+  const TERM_DOT = CAM;
+
+  const L = { fontSize: 13, fontWeight: 600, marginBottom: 7, display: "block", color: INK };
+  const field = (err) => ({ padding: "11px 13px", border: `1px solid ${err ? "#C0392B" : LINE}`, background: WHITE, color: INK, fontSize: 15, borderRadius: 2, outline: "none" });
+  const ERR = { color: "#C0392B", fontSize: 12.5, marginTop: 5 };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(17,19,24,.55)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 20, overflowY: "auto" }}>
+      <div onClick={(ev) => ev.stopPropagation()} style={{ background: WHITE, maxWidth: 640, width: "100%", padding: "clamp(24px,4vw,36px)", borderRadius: 2, margin: "32px 0" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+          <h2 style={{ fontFamily: DISPLAY, fontSize: 28, fontWeight: 600, color: OX, letterSpacing: "-.02em" }}>Book a Cambridge tour</h2>
+          <button onClick={onClose} style={{ border: "none", background: "none", fontSize: 26, cursor: "pointer", color: MUTED, lineHeight: 1 }}>×</button>
+        </div>
+        <p style={{ fontSize: 14.5, color: MUTED, lineHeight: 1.55, marginBottom: 24 }}>£49. Choose a date and your top 3 colleges. We'll try to supply a tutor from one, though we can't guarantee it. Payment is on the next step.</p>
+
+        {/* Calendar */}
+        <label style={L}>Pick a date</label>
+        <div style={{ border: `1px solid ${LINE}`, borderRadius: 2, padding: 14, marginBottom: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <button type="button" onClick={prevMonth} style={{ border: `1px solid ${LINE}`, background: WHITE, width: 34, height: 34, cursor: "pointer", fontSize: 16, borderRadius: 2 }}>‹</button>
+            <strong style={{ fontSize: 15.5 }}>{monthName}</strong>
+            <button type="button" onClick={nextMonth} style={{ border: `1px solid ${LINE}`, background: WHITE, width: 34, height: 34, cursor: "pointer", fontSize: 16, borderRadius: 2 }}>›</button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, fontSize: 11, color: MUTED, textAlign: "center", marginBottom: 6, fontWeight: 600 }}>
+            {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d) => <div key={d}>{d}</div>)}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4 }}>
+            {cells.map((d, i) => {
+              if (d === null) return <div key={`e${i}`} />;
+              const ds = dateStr(viewYear, viewMonth, d);
+              const past = ds < todayStr;
+              const term = isInTerm(ds);
+              const selected = f.date === ds;
+              return (
+                <button key={ds} type="button" disabled={past}
+                  onClick={() => setF((s) => ({ ...s, date: ds }))}
+                  title={term ? "Cambridge full term" : "Outside term (subject to availability)"}
+                  style={{
+                    position: "relative", aspectRatio: "1", border: `1px solid ${selected ? OX : LINE}`,
+                    background: selected ? OX : term ? TERM_BG : WHITE,
+                    color: past ? "#C7CBD2" : selected ? WHITE : INK,
+                    fontSize: 13.5, cursor: past ? "not-allowed" : "pointer", borderRadius: 2, fontWeight: selected ? 700 : 500,
+                  }}>
+                  {d}
+                  {term && !selected && <span style={{ position: "absolute", bottom: 3, left: "50%", transform: "translateX(-50%)", width: 4, height: 4, borderRadius: "50%", background: TERM_DOT }} />}
+                </button>
+              );
+            })}
+          </div>
+          {/* Legend */}
+          <div style={{ display: "flex", gap: 18, marginTop: 12, fontSize: 12, color: MUTED, flexWrap: "wrap" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 12, height: 12, background: TERM_BG, border: `1px solid ${CAM}`, borderRadius: 2 }} /> In term (students in Cambridge)</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 12, height: 12, background: WHITE, border: `1px solid ${LINE}`, borderRadius: 2 }} /> Out of term (subject to availability)</span>
+          </div>
+        </div>
+        {errors.date && <div style={ERR}>{errors.date}</div>}
+        {f.date && (
+          <p style={{ fontSize: 13.5, color: OX, fontWeight: 600, margin: "8px 0 20px" }}>
+            Selected: {new Date(f.date + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+            {!isInTerm(f.date) && <span style={{ color: MUTED, fontWeight: 400 }}> · out of term, we'll confirm availability</span>}
+          </p>
+        )}
+
+        {/* Colleges */}
+        <label style={L}>Your top colleges <span style={{ fontWeight: 400, color: MUTED }}>({f.colleges.length}/3)</span></label>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 4 }}>
+          {CAMBRIDGE_COLLEGES.map((c) => {
+            const on = f.colleges.includes(c);
+            const full = !on && f.colleges.length >= 3;
+            return (
+              <button key={c} type="button" onClick={() => toggleCollege(c)} disabled={full}
+                style={{ padding: "7px 12px", borderRadius: 2, fontSize: 13, fontWeight: 500, cursor: full ? "not-allowed" : "pointer",
+                  border: `1px solid ${on ? OX : LINE}`, background: on ? OX : WHITE, color: on ? WHITE : full ? "#C7CBD2" : INK, width: "auto" }}>
+                {c}
+              </button>
+            );
+          })}
+        </div>
+        {errors.colleges && <div style={ERR}>{errors.colleges}</div>}
+
+        {/* Name / email */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 20 }}>
+          <div>
+            <label style={L}>Your name</label>
+            <input style={field(errors.name)} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+            {errors.name && <div style={ERR}>{errors.name}</div>}
+          </div>
+          <div>
+            <label style={L}>Email</label>
+            <input style={field(errors.email)} value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="you@example.com" />
+            {errors.email && <div style={ERR}>{errors.email}</div>}
+          </div>
+        </div>
+
+        <div style={{ marginTop: 16 }}>
+          <label style={L}>Anything else <span style={{ fontWeight: 400, color: MUTED }}>(optional)</span></label>
+          <textarea style={{ ...field(false), minHeight: 70, resize: "vertical", width: "100%" }} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} placeholder="Course interest, group size, anything useful." />
+        </div>
+
+        {/* Honeypot */}
+        <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", height: 0, overflow: "hidden" }}>
+          <input tabIndex={-1} autoComplete="off" value={f.website} onChange={(e) => setF({ ...f, website: e.target.value })} />
+        </div>
+
+        <div style={{ marginTop: 18 }}><Turnstile onToken={setTsToken} /></div>
+        <button onClick={submit} disabled={sending} style={{ width: "100%", background: OX, color: WHITE, padding: "15px", fontWeight: 600, fontSize: 16, border: "none", cursor: sending ? "wait" : "pointer", marginTop: 16, opacity: sending ? 0.7 : 1 }}>
+          {sending ? "Saving…" : "Continue to payment (£49)"}
+        </button>
+        {sendError && <p style={{ color: "#C0392B", fontSize: 14, textAlign: "center", marginTop: 10 }}>{sendError}</p>}
+        <p style={{ fontSize: 12, color: MUTED, textAlign: "center", marginTop: 10 }}>You'll be taken to Stripe to pay securely. Nothing is confirmed until we've checked availability.</p>
+      </div>
+    </div>
+  );
+}
+
 // ── Turnstile widget (renders only if a sitekey is set) ───────
 function Turnstile({ onToken }) {
   const ref = React.useRef(null);
@@ -1015,6 +1282,7 @@ function AdminPanel() {
   const [authed, setAuthed] = useState(false);
   const [tutors, setTutors] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [tours, setTours] = useState([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [editing, setEditing] = useState(null); // tutor object being edited
@@ -1035,6 +1303,7 @@ function AdminPanel() {
     try {
       const d = await callAdmin("list"); setTutors(d.tutors || []);
       try { const p = await callAdmin("payments"); setPayments(p.payments || []); } catch {}
+      try { const tr = await callAdmin("tours"); setTours(tr.tours || []); } catch {}
       setAuthed(true);
     }
     catch (e) { setErr(e.message); }
@@ -1114,6 +1383,36 @@ function AdminPanel() {
           </div>
         ))}
       </div>
+
+      <h2 style={{ fontFamily: DISPLAY, fontSize: 22, color: INK, marginBottom: 6 }}>Cambridge tours</h2>
+      {(() => {
+        const paid = tours.filter((t) => t.paid);
+        const pending = tours.filter((t) => !t.paid);
+        return <p style={{ color: MUTED, fontSize: 14, marginBottom: 16 }}>
+          <strong style={{ color: "#0E7C4F" }}>{paid.length} paid</strong> · {pending.length} awaiting payment · {tours.length} total request{tours.length === 1 ? "" : "s"}.
+        </p>;
+      })()}
+      {tours.length === 0 ? (
+        <p style={{ color: MUTED, fontSize: 14, marginBottom: 40 }}>No tour requests yet.</p>
+      ) : (
+        <div style={{ display: "grid", gap: 8, marginBottom: 40 }}>
+          {tours.map((t) => {
+            const d = new Date(t.tour_date + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+            return (
+              <div key={t.id} style={{ border: `1px solid ${LINE}`, borderLeft: `3px solid ${t.paid ? "#0E7C4F" : "#E0A030"}`, padding: "12px 16px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8, fontSize: 14 }}>
+                <span>
+                  <strong>{t.name}</strong> · {d}<br />
+                  <span style={{ color: MUTED, fontSize: 13 }}>{(t.colleges || []).join(", ")} · {t.email}</span>
+                  {t.notes && <span style={{ color: MUTED, fontSize: 13, display: "block", marginTop: 2 }}>{t.notes}</span>}
+                </span>
+                <span style={{ color: t.paid ? "#0E7C4F" : "#B8860B", fontWeight: 600, whiteSpace: "nowrap" }}>
+                  {t.paid ? `✓ Paid ${t.paid_at ? new Date(t.paid_at).toLocaleDateString() : ""}` : "Awaiting payment"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <h2 style={{ fontFamily: DISPLAY, fontSize: 22, color: INK, marginBottom: 6 }}>Payments</h2>
       {(() => {
