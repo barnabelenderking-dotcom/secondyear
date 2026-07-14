@@ -1316,7 +1316,11 @@ function AdminPanel() {
     try { await callAdmin(action, { id }); await refresh(); } catch (e) { setErr(e.message); }
   }
   async function saveEdit(id, fields) {
-    try { await callAdmin("edit", { id, fields }); setEditing(null); await refresh(); }
+    try {
+      if (id) { await callAdmin("edit", { id, fields }); }
+      else { await callAdmin("create", { fields }); }
+      setEditing(null); await refresh();
+    }
     catch (e) { setErr(e.message); }
   }
 
@@ -1341,7 +1345,10 @@ function AdminPanel() {
     <section style={{ maxWidth: 900, margin: "0 auto", padding: "clamp(48px,7vw,80px) 40px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 32 }}>
         <h1 style={{ fontFamily: DISPLAY, fontSize: 34, fontWeight: 600, color: OX, letterSpacing: "-.02em" }}>Tutor review queue</h1>
-        <button onClick={refresh} style={{ border: `1px solid ${LINE}`, background: WHITE, padding: "8px 16px", cursor: "pointer", fontSize: 14 }}>Refresh</button>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={() => setEditing({})} style={{ border: "none", background: OX, color: WHITE, padding: "8px 16px", cursor: "pointer", fontSize: 14, fontWeight: 600 }}>+ Add tutor</button>
+          <button onClick={refresh} style={{ border: `1px solid ${LINE}`, background: WHITE, padding: "8px 16px", cursor: "pointer", fontSize: 14 }}>Refresh</button>
+        </div>
       </div>
       {err && <p style={{ color: "#C0392B", fontSize: 14, marginBottom: 16 }}>{err}</p>}
 
@@ -1470,10 +1477,10 @@ function EditModal({ tutor, onClose, onSave }) {
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(17,19,24,.55)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 20, overflowY: "auto" }}>
       <div onClick={(ev) => ev.stopPropagation()} style={{ background: WHITE, maxWidth: 560, width: "100%", padding: 32, borderRadius: 2, margin: "40px 0" }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-          <h2 style={{ fontFamily: DISPLAY, fontSize: 26, fontWeight: 600, color: OX }}>Edit tutor</h2>
+          <h2 style={{ fontFamily: DISPLAY, fontSize: 26, fontWeight: 600, color: OX }}>{tutor.id ? "Edit tutor" : "Add tutor manually"}</h2>
           <button onClick={onClose} style={{ border: "none", background: "none", fontSize: 24, cursor: "pointer", color: MUTED }}>×</button>
         </div>
-        <p style={{ fontSize: 13, color: MUTED, marginBottom: 20 }}>Reformat or correct any field. Subjects and stages are comma-separated. Changes save immediately.</p>
+        <p style={{ fontSize: 13, color: MUTED, marginBottom: 20 }}>{tutor.id ? "Reformat or correct any field. Subjects and stages are comma-separated. Changes save immediately." : "Add a tutor by hand. They'll land in the pending queue for a final review before going live. Subjects, stages and admitted-to are comma-separated."}</p>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div><label style={lab}>First name</label><input style={inp} value={e.first_name} onChange={set("first_name")} /></div>
           <div><label style={lab}>Last name</label><input style={inp} value={e.last_name} onChange={set("last_name")} /></div>
@@ -1494,7 +1501,7 @@ function EditModal({ tutor, onClose, onSave }) {
         <label style={lab}>Stages (comma separated)</label><input style={inp} value={e.stages} onChange={set("stages")} />
         <label style={lab}>Pitch</label><textarea style={{ ...inp, minHeight: 90, resize: "vertical" }} value={e.blurb} onChange={set("blurb")} />
         <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-          <button onClick={save} style={{ flex: 1, background: OX, color: WHITE, border: "none", padding: "12px", fontWeight: 600, cursor: "pointer" }}>Save changes</button>
+          <button onClick={save} style={{ flex: 1, background: OX, color: WHITE, border: "none", padding: "12px", fontWeight: 600, cursor: "pointer" }}>{tutor.id ? "Save changes" : "Add tutor"}</button>
           <button onClick={onClose} style={{ border: `1px solid ${LINE}`, background: WHITE, padding: "12px 20px", cursor: "pointer" }}>Cancel</button>
         </div>
       </div>
