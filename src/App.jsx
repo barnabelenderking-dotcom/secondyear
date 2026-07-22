@@ -251,7 +251,8 @@ export default function App() {
   const [tourOpen, setTourOpen] = useState(false);
   const [tutors, setTutors] = useState([]);
   const [loadState, setLoadState] = useState("loading"); // loading | ready | error
-
+const [showAllTutors, setShowAllTutors] = useState(false);
+  
   React.useEffect(() => {
     let alive = true;
     fetchTutors()
@@ -451,12 +452,41 @@ export default function App() {
             No tutor matches that combination right now. Send an enquiry and we'll match you to the next available tutor for your course.
           </div>
         ) : (
+          <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(330px,1fr))", gap: 20 }}>
-            {shown.map((t) => <Card key={t.id} t={t} onRequest={() => openEnquiry(`${t.first} ${t.last} (${t.uni})`)} />)}
+            {(showAllTutors ? shown : shown.slice(0, 6)).map((t) => <Card key={t.id} t={t} onRequest={() => openEnquiry(t.first + " " + t.last + " (" + t.uni + ")")} />)}
           </div>
+          {shown.length > 6 && (
+            <div style={{ textAlign: "center", marginTop: 32 }}>
+              <button onClick={() => setShowAllTutors((v) => !v)}
+                style={{ border: "1px solid " + OX, background: WHITE, color: OX, padding: "13px 32px", fontWeight: 600, fontSize: 15, cursor: "pointer" }}>
+                {showAllTutors ? "Show fewer" : "View all " + shown.length + " tutors"}
+              </button>
+            </div>
+          )}
+          </>
         )}
       </section>
 
+        {/* ── Reassurance: the directory is a sample ── */}
+      <section style={{ maxWidth: 1080, margin: "0 auto", padding: "clamp(20px,4vw,48px) 40px clamp(60px,8vw,90px)" }}>
+        <div style={{ background: CAM, color: CAM_INK, padding: "clamp(32px,5vw,56px)", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+          <p style={{ fontSize: 13, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 600, marginBottom: 18, color: OX }}>This is just a sample</p>
+          <h2 style={{ fontFamily: DISPLAY, fontSize: "clamp(28px,4vw,42px)", fontWeight: 600, lineHeight: 1.1, letterSpacing: "-.02em", marginBottom: 18, maxWidth: 720 }}>
+            The tutors above are a handful of hundreds.
+          </h2>
+          <p style={{ fontSize: 17, lineHeight: 1.6, maxWidth: 620, marginBottom: 14, color: "rgba(11,59,54,.85)" }}>
+            We match from a network of current Oxford and Cambridge students across nearly every subject and college. If you can't see the exact person for your course here, it changes nothing, they're almost certainly on our books, or a term away. Tell us what you need and we'll find them.
+          </p>
+          <p style={{ fontSize: 17, lineHeight: 1.6, maxWidth: 620, marginBottom: 28, fontWeight: 600 }}>
+            The first introductory call is always free, and nothing is committed until you've met them and decided the fit is right.
+          </p>
+          <button onClick={() => openEnquiry("")}
+            style={{ background: OX, color: WHITE, padding: "15px 34px", fontWeight: 600, fontSize: 16, border: "none", cursor: "pointer" }}>
+            Tell us who you need
+          </button>
+        </div>
+      </section>
       {/* ── ENQUIRY (Oxford band) ── */}
       <EnquirySection prefill={enquiry} onOpen={openEnquiry} />
       </>)}
